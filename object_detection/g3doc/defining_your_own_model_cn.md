@@ -1,5 +1,19 @@
+# 来，建立你想要一个新的模型！
+在这个章节，为了定义我们使用物品定位模型，我们会讨论一些关于这方面的抽象。
+如果你想使用TF物品定位API来定义一个新模型架构，这节内容也会作你需要编辑的
+文件内容的来让你的新的模型能够有效工作的高阶向导。
+## DetectionModels (`object_detection/core/model.py`)
+为了能够训练、评估和能用我们提供的二进制包来导出为服务，所有使用TF物品定位API
+必需实现`DetectionModel` 接口 ( `object_detection/core/model.py`有完整定义).
+特别说明，这些模型负责实现这5个功能：
+* `preprocess`: 输入图片做必要前期处理（如：缩放、移位、变形）
+* `predict`: 产生原始的预测张量，这些张量可能传递给LOSS函数或进行后期处理
+* `postprocess`: 转换输出张量为最终物品定位的结果
+* `loss`: 计算相对于提供真实数据的LOSS值
+* `restore`: 调出模型保存点数据到TF图中
+
 # So you want to create a new model!
-# 好，你想建立一个新的模型
+
 In this section, we discuss some of the abstractions that we use
 for defining detection models. If you would like to define a new model
 architecture for detection and use it in the Tensorflow Detection API,
