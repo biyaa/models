@@ -1,5 +1,5 @@
 # So you want to create a new model!
-
+# 好，你想建立一个新的模型
 In this section, we discuss some of the abstractions that we use
 for defining detection models. If you would like to define a new model
 architecture for detection and use it in the Tensorflow Detection API,
