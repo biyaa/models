@@ -25,7 +25,8 @@ inputs (images tensor) -> preprocess -> predict -> postprocess ->
 * `DetectionModel` ：不应假定输入大小和高宽比 --- 它们会负责做必要的缩放和变形
 * 输出的物品分类的总是在整数范围，如：`[0, num_classes)`。
  任何整数映射成能够理解的语言标签都在这个API进行。 我们不会明确的发出一个背景分类
----所以0是第一个非背景类别，任何预测逻辑和删除暗示的背类别景必须实现的内部自己处理。
+---所以0是第一个非背景类别，任何预测逻辑和删除暗示的背景类别，必须实现者自己内部
+处理这种情况。
 * 定位检测出坐标格式为：`[y_min, x_min, y_max, x_max]` ，并且是image的相对坐标。
 * 我们任何种类分数不做概率性解释假定---唯一重要的只是他们相对顺序。所以你后期处理实现
  时，可以输出对数、可能性或校对可能性或者其它的东西
@@ -36,9 +37,40 @@ inputs (images tensor) -> preprocess -> predict -> postprocess ->
 
 注：为了能理解接下来的讨论, 我们推荐先熟悉这个论文 [Faster R-CNN](https://arxiv.org/abs/1506.01497) 。
 
+让我们现成假定你已经发明了一个新网络架构（假设叫“InceptionV100”）来做分类，想看一下InceptionV100作为
+一个物体检测特征提取器（假定和 Faster R-CNN组合）的效果如何。 这个SSD模型的过程相似，但这里我们讨论 Faster R-CNN。
+
+为了使用 InceptionV100, 我们必须定义一个新的`FasterRCNNFeatureExtractor` 并且作为 `FasterRCNNMetaArch`构造者
+的输入。  见`object_detection/meta_architectures/faster_rcnn_meta_arch.py` 分别定义了 `FasterRCNNFeatureExtractor` 
+和`FasterRCNNMetaArch`。
+一个 `FasterRCNNFeatureExtractor` 必须定义功能：
+* `preprocess`: 图片前期处理。
+* `_extract_proposal_features`: 提取第一阶段的区域建议网络的 (RPN) 特征。
+* `_extract_box_classifier_features`: 提取第二阶段矩阵框分类特征。
+* `restore_from_classification_checkpoint_fn`: 调取保存点到TF图的功能。
+
+见 `object_detection/models/faster_rcnn_resnet_v1_feature_extractor.py`的定义例子，一些注意事项
+* 我们一般初始化特征提取器的权重使用的tf-slim  [Slim Resnet-101 classification checkpoint](https://github.com/tensorflow/models/tree/master/slim#pre-trained-models)，当我们训练时，图片的前期处理
+这个保存点是减去每张输入图片通道的平均值。 所有我们的实现前期处理的功能是复制的这个，做同样的减去平均值的处理。
+* 在SLIM中，完整的RESNET分类网络被切分成两个部分 --- “resnet block” 放在 `_extract_proposal_features` 功能中
+final block 定义在 `_extract_box_classifier_features function`。  通常情况下，一些实验需要决定在优化层之上，切分
+你的特征提取器到这两部分给 Faster R-CNN。
+
+## 在配置中注册你的模型
+假定你的模型不需要非标准配置，在你的配置文件中，可简单的修改“feature_extractor.type” 字段来指向新的特征提取器。为了
+让我们的API知道怎么理解这个的类型，你首先必须注册你的新的特征提取器到模型建造者(`object_detection/builders/model_builder.py`)
+它的功能是为了根据配置原理创建模型。
+
+注册非常简单 --- 就加一个个你已经定义的SSD或 Faster R-CNN类中的新特征提取器在文件`object_detection/builders/model_builder.py`。
+推荐加一个测试在`object_detection/builders/model_builder_test.py`，确认分析proto符合预期。
 
 
+## 让新模型转起来
+在注册好后，你准备去跑你的模型。下面最后的一些提示：
 
+* 为了节约调试时间，首先运行本地的配置（包括训练和评估）
+* 做一个适合模型的学习率的梳理。
+* 一个小但经常用的重要细节：你可能有禁用BN训练（哪是因为，调出BN参数分类保存点，但不会梯度下降中不会更新它们）。
 
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
