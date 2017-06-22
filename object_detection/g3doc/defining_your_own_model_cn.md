@@ -11,7 +11,37 @@
 * `postprocess`: 转换输出张量为最终物品定位的结果
 * `loss`: 计算相对于提供真实数据的LOSS值
 * `restore`: 调出模型保存点数据到TF图中
+在训练阶段，给定的一个 `DetectionModel`，每批图片会顺序通过下面的功能，最后会计算出
+LOSS值，这个LOSS值又能够通过SGD优化：
+```
+inputs (images tensor) -> preprocess -> predict -> loss -> outputs (loss tensor)
+```
+在评估阶段，每批图片会顺序通过下面的功能，会产生一组物品定位预测：
+```
+inputs (images tensor) -> preprocess -> predict -> postprocess ->
+  outputs (boxes tensor, scores tensor, classes tensor, num_detections tensor)
+```
+为了方便理解，做出以下约定：
+* `DetectionModel` ：不应假定输入大小和高宽比 --- 它们会负责做必要的缩放和变形
+* 输出的物品分类的总是在整数范围，如：`[0, num_classes)`。
+ 任何整数映射成能够理解的语言标签都在这个API进行。 我们不会明确的发出一个背景分类
+---所以0是第一个非背景类别，任何预测逻辑和删除暗示的背类别景必须实现的内部自己处理。
+* 定位检测出坐标格式为：`[y_min, x_min, y_max, x_max]` ，并且是image的相对坐标。
+* 我们任何种类分数不做概率性解释假定---唯一重要的只是他们相对顺序。所以你后期处理实现
+ 时，可以输出对数、可能性或校对可能性或者其它的东西
+ 
+## 定义一个新的 Faster R-CNN 或 SSD 特征提取器
+在大部分情况下，你可能不需要实现`DetectionModel`的这个部分 --- 你实际可能是通过Faster R-CNN 或 SSD
+元架构来创建一个新的特征提取器。（我们认为元架构作通过使用`DetectionModel`抽象来定义整个模型家族更恰当。）
 
+注：为了能理解接下来的讨论, 我们推荐先熟悉这个论文 [Faster R-CNN](https://arxiv.org/abs/1506.01497) 。
+
+
+
+
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # So you want to create a new model!
 
 In this section, we discuss some of the abstractions that we use
